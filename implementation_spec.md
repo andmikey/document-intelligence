@@ -25,6 +25,7 @@
 │   ├── ingest.py           # File validation and preprocessing
 │   ├── extract.py          # LLM call, prompt, output parsing
 │   ├── schemas.py          # Pydantic models for all inputs/outputs
+│   ├── flags.py            # Single source of truth for red_flag label constants
 │   ├── score.py            # Rule registry and scoring aggregation
 │   └── rules/
 │       ├── __init__.py     # Rule registry — only file to edit when adding a rule
@@ -55,6 +56,7 @@ works correctly when the LLM omits fields.
 
 ```python
 # ExtractedFields — output of the LLM extraction step
+# Fields match the spec exactly. Rules must use only these fields.
 class ExtractedFields(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
@@ -65,11 +67,6 @@ class ExtractedFields(BaseModel):
     counterparty: str | None = None
     platform: str | None = None
     contact_details: str | None = None
-    compensation_type: str | None = None     # e.g. "USDT", "GBP", "unspecified"
-    job_description: str | None = None
-    referral_code_present: bool | None = None
-    third_party_recruiter_mentioned: bool | None = None
-    platform_migration_requested: bool | None = None
     red_flags: list[str] = []               # descriptive labels, not risk judgements
 
 # ProcessingMetadata — populated from ExtractionResult, included in final output
@@ -113,6 +110,42 @@ Note: `extraction_warnings` lives inside `processing_metadata` in both
 
 ---
 
+### `pipeline/flags.py`
+
+Single source of truth for all red flag label constants. Both the prompt in
+`extract.py` and the rules in `advance_fee.py` must import from here — never
+hardcode label strings in two places.
+
+```python
+# Labels the prompt instructs the model to use.
+# Rules check for exact membership using these constants.
+CRYPTO_COMPENSATION = "cryptocurrency_compensation_mentioned"
+UNKNOWN_CONTACT = "unknown_contact_initiated"
+THIRD_PARTY_RECRUITER = "third_party_recruiter_referenced"
+REFERRAL_CODE_PRESENT = "referral_code_present"
+PLATFORM_MIGRATION = "platform_migration_requested"
+VAGUE_JOB_NO_SKILLS = "vague_job_no_skills_required"
+URGENCY_LANGUAGE = "urgency_language_present"
+SECRECY_INSTRUCTION = "secrecy_instruction_present"
+UNVERIFIABLE_EMPLOYER = "unverifiable_employer"
+
+# The subset that the prompt lists as examples. Used to build the prompt dynamically
+# so the prompt and constants cannot diverge.
+PROMPTED_FLAGS = [
+    CRYPTO_COMPENSATION,
+    UNKNOWN_CONTACT,
+    THIRD_PARTY_RECRUITER,
+    REFERRAL_CODE_PRESENT,
+    PLATFORM_MIGRATION,
+    VAGUE_JOB_NO_SKILLS,
+    URGENCY_LANGUAGE,
+    SECRECY_INSTRUCTION,
+    UNVERIFIABLE_EMPLOYER,
+]
+```
+
+---
+
 ### `pipeline/ingest.py`
 
 Responsibilities: validate the uploaded file, convert to a base64-encoded image
@@ -150,33 +183,43 @@ Your job is to observe and describe document contents accurately.
 Do not make fraud judgements — only extract factual attributes and surface observable signals.
 Always respond with valid JSON matching the schema below. Use null for fields not present.
 
-[Full JSON schema with field descriptions]
+Schema:
+{
+  "category": one of invoice | marketplace_listing_screenshot | chat_screenshot | website_screenshot | other,
+  "category_confidence": float 0-1,
+  "extracted_fields": {
+    "entity_name": string | null,
+    "amount": number | null,
+    "currency": string | null,
+    "date": string | null,
+    "counterparty": string | null,
+    "platform": string | null,
+    "contact_details": string | null,
+    "red_flags": list[string]
+  }
+}
 
 USER:
 Analyse this document. Extract all fields.
 
-For the category field, choose from: invoice, marketplace_listing_screenshot,
-chat_screenshot, website_screenshot, other.
-
 For red_flags, return a list of short descriptive labels for any observable signals
-present in the document. Examples of valid labels (not exhaustive — include any
-additional signals you observe):
-  "cryptocurrency_compensation_mentioned"
-  "third_party_recruiter_referenced"
-  "platform_migration_requested"
-  "referral_code_present"
-  "unknown_contact_initiated"
-  "urgency_language_present"
-  "secrecy_instruction_present"
-  "unverifiable_employer"
+present in the document. The following labels have specific meanings — use them
+exactly when the signal is present (the list is not exhaustive; include additional
+labels for any other signals you observe):
+
+  [labels injected from flags.PROMPTED_FLAGS at runtime]
+
 Do not use evaluative language like "suspicious" or "fraudulent" in red_flags.
 
 For category_confidence, return a float 0-1 representing your confidence in the
-category assignment. Note: this is your self-assessed confidence, not a calibrated
-probability.
+category assignment. This is your self-assessed confidence, not a calibrated probability.
 
 [base64 image]
 ```
+
+Note: the prompt is built programmatically by iterating over `flags.PROMPTED_FLAGS`
+to render the label list. This ensures the prompt and the constants in `flags.py`
+cannot diverge.
 
 **Function signatures:**
 
@@ -242,16 +285,19 @@ to `RULES` in `pipeline/rules/__init__.py`. No other files need to change.
 
 ### `pipeline/rules/advance_fee.py`
 
-Implement the following six rules, each as a class inheriting `BaseRule`:
+Implement the following six rules, each as a class inheriting `BaseRule`. All rules
+check for the presence of a specific constant from `pipeline/flags.py` in
+`fields.red_flags`, except `PersonalMessagingPlatformRule` which reads the
+structured `platform` field directly.
 
 | Class | rule_id | bucket | weight | Trigger condition |
 |---|---|---|---|---|
-| `CryptoCompensationRule` | `crypto_compensation` | `compensation` | 0.35 | `compensation_type` is not None and contains "usdt", "crypto", "bitcoin", "ethereum", or "token" (case-insensitive) |
-| `UnknownContactRule` | `unknown_contact_initiated` | `contact` | 0.20 | `contact_details` matches a raw phone number pattern (digits, spaces, +) with no alphabetic name component |
-| `PersonalMessagingPlatformRule` | `personal_messaging_platform` | `contact` | 0.15 | `platform` is not None and matches "whatsapp", "telegram", or "signal" (case-insensitive) |
-| `ThirdPartyReferralRule` | `third_party_referral` | `recruitment` | 0.20 | `third_party_recruiter_mentioned` is True OR `referral_code_present` is True |
-| `PlatformMigrationRule` | `platform_migration_requested` | `recruitment` | 0.20 | `platform_migration_requested` is True |
-| `VagueJobDescriptionRule` | `vague_job_description` | `recruitment` | 0.15 | `job_description` is not None AND contains any of: "no skills", "just use phone", "mobile phone", "easy work", "anyone can", "no experience" (case-insensitive) |
+| `CryptoCompensationRule` | `crypto_compensation` | `compensation` | 0.35 | `flags.CRYPTO_COMPENSATION in fields.red_flags` |
+| `UnknownContactRule` | `unknown_contact_initiated` | `contact` | 0.20 | `flags.UNKNOWN_CONTACT in fields.red_flags` |
+| `PersonalMessagingPlatformRule` | `personal_messaging_platform` | `contact` | 0.15 | `fields.platform` is not None and matches "whatsapp", "telegram", or "signal" (case-insensitive) |
+| `ThirdPartyReferralRule` | `third_party_referral` | `recruitment` | 0.20 | `flags.THIRD_PARTY_RECRUITER in fields.red_flags` OR `flags.REFERRAL_CODE_PRESENT in fields.red_flags` |
+| `PlatformMigrationRule` | `platform_migration_requested` | `recruitment` | 0.20 | `flags.PLATFORM_MIGRATION in fields.red_flags` |
+| `VagueJobDescriptionRule` | `vague_job_description` | `recruitment` | 0.15 | `flags.VAGUE_JOB_NO_SKILLS in fields.red_flags` |
 
 ---
 
@@ -366,15 +412,18 @@ file -> ingest.validate_file()       # raises IngestionError on bad input
 ### `tests/test_rules.py`
 
 One trigger test and one no-trigger test per rule. Construct minimal `ExtractedFields`
-objects — only populate the fields the rule under test actually reads.
+objects — only populate the fields the rule under test actually reads. Rules that
+check `red_flags` should use the constants from `pipeline/flags.py`.
 
 ```python
+from pipeline.flags import CRYPTO_COMPENSATION
+
 def test_crypto_compensation_triggers():
-    fields = ExtractedFields(compensation_type="USDT")
+    fields = ExtractedFields(red_flags=[CRYPTO_COMPENSATION])
     assert CryptoCompensationRule().evaluate(fields).triggered is True
 
 def test_crypto_compensation_does_not_trigger():
-    fields = ExtractedFields(compensation_type="GBP")
+    fields = ExtractedFields(red_flags=[])
     assert CryptoCompensationRule().evaluate(fields).triggered is False
 ```
 
@@ -442,17 +491,18 @@ test_complete_parse_failure_returns_safe_result
 Build bottom-up to allow incremental testing at each step:
 
 1. `schemas.py` — all Pydantic models, no dependencies
-2. `rules/base.py` — abstract base class
-3. `rules/advance_fee.py` — concrete rules
-4. `tests/test_rules.py` — run `pytest tests/test_rules.py` and confirm all pass before continuing
-5. `ingest.py` — file validation and image prep
-6. `tests/test_ingest.py` — confirm validation logic before wiring to UI
-7. `score.py` — aggregation logic
-8. `tests/test_score.py` — confirm aggregation and capping behaviour
-9. `extract.py` — LLM call and parsing
-10. `tests/test_extract.py` — confirm parsing with mocked responses
-11. `rules/__init__.py` — assemble registry
-12. `app.py` — wire everything together in Streamlit
+2. `flags.py` — label constants; imported by both prompt builder and rules
+3. `rules/base.py` — abstract base class
+4. `rules/advance_fee.py` — concrete rules
+5. `tests/test_rules.py` — run `pytest tests/test_rules.py` and confirm all pass before continuing
+6. `ingest.py` — file validation and image prep
+7. `tests/test_ingest.py` — confirm validation logic before wiring to UI
+8. `score.py` — aggregation logic
+9. `tests/test_score.py` — confirm aggregation and capping behaviour
+10. `extract.py` — LLM call and parsing (imports flags.PROMPTED_FLAGS to build prompt)
+11. `tests/test_extract.py` — confirm parsing with mocked responses
+12. `rules/__init__.py` — assemble registry
+13. `app.py` — wire everything together in Streamlit
 
 ---
 

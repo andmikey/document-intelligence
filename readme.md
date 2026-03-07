@@ -62,7 +62,6 @@ Rules are grounded in observable signals from the advance fee / job scam typolog
 | Unknown contact initiated conversation | Unsolicited contact from an unsaved number is the standard entry point for job scams. |
 | Personal messaging platform used | Legitimate employers do not recruit via WhatsApp or Telegram cold messages. |
 | Third-party referral present | Referral codes and named recruiters indicate a coordinated scam network. |
-| Platform migration requested | Asking to move to Telegram mid-conversation suggests evasion of platform moderation. |
 | Vague job requiring no skills | "Just operate a mobile phone" is a near-universal marker of task-based scam recruitment. |
 
 Thresholds for low / medium / high risk labels are set arbitrarily in the absence of a labelled historical dataset. In production these would be tuned against ground truth to optimise true positive rate at a fixed false positive rate.

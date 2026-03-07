@@ -1,5 +1,18 @@
 # Tunic Pay takehome: categorization and risk extraction
 
+# Running the app
+
+To run the **app**:
+```sh 
+$ streamlit run app.py
+```
+
+To run the **tests**:
+
+```sh
+$ python3 -m pytest tests/
+```
+
 # Design Notes
 
 ## Context and assumptions

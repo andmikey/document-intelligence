@@ -1,0 +1,7 @@
+streamlit
+openai
+pydantic>=2.0
+pymupdf
+Pillow
+python-dotenv
+pytest

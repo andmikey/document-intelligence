@@ -1,5 +1,18 @@
 # Tunic Pay takehome: categorization and risk extraction
 
+# Running the app
+
+To run the **app**:
+```sh 
+$ streamlit run app.py
+```
+
+To run the **tests**:
+
+```sh
+$ python3 -m pytest tests/
+```
+
 # Design Notes
 
 ## Context and assumptions
@@ -62,7 +75,6 @@ Rules are grounded in observable signals from the advance fee / job scam typolog
 | Unknown contact initiated conversation | Unsolicited contact from an unsaved number is the standard entry point for job scams. |
 | Personal messaging platform used | Legitimate employers do not recruit via WhatsApp or Telegram cold messages. |
 | Third-party referral present | Referral codes and named recruiters indicate a coordinated scam network. |
-| Platform migration requested | Asking to move to Telegram mid-conversation suggests evasion of platform moderation. |
 | Vague job requiring no skills | "Just operate a mobile phone" is a near-universal marker of task-based scam recruitment. |
 
 Thresholds for low / medium / high risk labels are set arbitrarily in the absence of a labelled historical dataset. In production these would be tuned against ground truth to optimise true positive rate at a fixed false positive rate.
@@ -78,7 +90,7 @@ Thresholds for low / medium / high risk labels are set arbitrarily in the absenc
 | Malformed LLM output | Single retry; if still malformed, partial result returned with warning |
 | Missing extracted fields | Filled with null; warning added to `extraction_warnings` |
 | Model refusal | Detected by absence of expected JSON structure; partial result returned with warning |
-| API timeout / rate limit | Single retry with exponential backoff; structured error returned on second failure |
+| API timeout / rate limit | Single retry; 5 s delay on 429 (rate limit), 2 s delay on timeout / 5xx; structured error returned on second failure |
 | Scoring failure after successful extraction | Extraction result returned with scoring warnings rather than discarding entirely |
 
 The guiding principle is **partial results over no results** - the output schema is always returned, even on failure, with explicit warnings indicating what succeeded and what did not.

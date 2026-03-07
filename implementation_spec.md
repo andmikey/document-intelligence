@@ -21,7 +21,7 @@
 /
 ├── app.py                  # Streamlit UI entry point
 ├── pipeline/
-│   ├── __init__.py
+│   ├── __init__.py         # Empty package marker; consumers import from submodules directly
 │   ├── ingest.py           # File validation and preprocessing
 │   ├── extract.py          # LLM call, prompt, output parsing
 │   ├── schemas.py          # Pydantic models for all inputs/outputs
@@ -162,9 +162,11 @@ validate_file(file) -> None | raises IngestionError
 prepare_image(file) -> str  (base64 encoded JPEG)
     - PDFs: render first page to image via pymupdf at 150dpi
     - Images: resize to max 1568px on longest side (Gemini recommended max)
-    - Convert to JPEG, base64 encode
+    - Convert to JPEG with quality=85, base64 encode
     - Return base64 string
-    - Note: resizing before the API call is the primary latency optimisation
+    - Note: resizing before the API call is the primary latency optimisation;
+      quality=85 is the practical floor below which artefacts meaningfully affect
+      OCR-style signal extraction
 ```
 
 ---
@@ -229,15 +231,28 @@ call_llm(image_b64: str) -> tuple[dict, str, int]
     - Model: google/gemini-2.0-flash-001
     - Record start timestamp before call, compute latency_ms after
     - Return (parsed response dict, model name, latency_ms)
-    - On timeout or non-200: wait 2s and retry once
+    - On 429 (rate limit): wait 5s and retry once
+    - On timeout or 5xx: wait 2s and retry once
     - On second failure: raise LLMCallError with failure mode description
+      (include HTTP status or exception type in the message)
 
 parse_extraction(raw: dict, model: str, latency_ms: int) -> ExtractionResult
-    - Attempt Pydantic validation of raw dict against ExtractionResult schema
-    - On ValidationError: collect names of invalid/missing fields, fill with null,
-      append field names to extraction_warnings, return partial result
     - On complete parse failure (raw is not a dict): raise ExtractionParseError
       with raw response logged for debugging
+    - Attempt Pydantic validation of raw dict against ExtractionResult schema
+    - On ValidationError: for each field error, extract the field path and error
+      type (missing | wrong_type | value_error); remove the offending key from
+      the raw dict, append "<field>: <error_type>" to extraction_warnings, then
+      re-validate. Pydantic fills the removed field with its default (None / []).
+      Example warning: "extracted_fields.amount: wrong_type"
+    - Post-parse key comparison: inspect raw.get("extracted_fields", {}) and
+      compare its keys against ExtractedFields model fields. For each expected
+      field absent from the raw dict, append "<field>: not returned by model"
+      to extraction_warnings.
+      Rationale: Pydantic fills absent optional fields with None without raising
+      ValidationError, so this explicit key comparison is the only way to
+      distinguish "model returned null" from "model omitted the field entirely".
+    - Return the (possibly partial) ExtractionResult in all cases
 
 extract(image_b64: str) -> ExtractionResult
     - Orchestrates call_llm -> parse_extraction
@@ -359,10 +374,13 @@ assign_label(score: float) -> Literal["low", "medium", "high"]
 
 build_summary(results: list[RuleResult], label: str) -> str
     - Collect explanation strings from triggered rules only
-    - Return a single human-readable sentence for an analyst
-    - Example: "High risk: cryptocurrency compensation and third-party referral
-      indicate an advance fee / job scam pattern."
     - If no rules triggered: return "No significant risk signals detected."
+    - Join collected explanations with "; "
+    - Return f"{label.capitalize()} risk: {joined_explanations}."
+    - Example: "High risk: cryptocurrency compensation mentioned; third-party
+      referral present."
+    - Convention: each RuleResult.explanation must be ≤ 80 characters and must
+      not begin with a capital letter, so concatenation reads naturally
 
 score(fields: ExtractedFields) -> tuple[list[RuleResult], float, str, str]
     - Orchestrates run_rules -> aggregate_score -> assign_label -> build_summary
@@ -397,11 +415,12 @@ Streamlit UI. Keep this thin — all logic lives in the pipeline modules.
 
 **Processing flow:**
 ```
+file_id = str(uuid.uuid4())          # generated at upload time, before any processing
 file -> ingest.validate_file()       # raises IngestionError on bad input
      -> ingest.prepare_image()       # returns base64 string
      -> extract.extract()            # returns ExtractionResult (never raises)
      -> score.score()                # returns (rules, score, label, summary)
-     -> assemble PipelineOutput      # construct final schema
+     -> assemble PipelineOutput      # construct final schema; include file_id
      -> display results
 ```
 
@@ -469,9 +488,14 @@ test_valid_response_parses_correctly
     — assert processing_metadata.extraction_warnings is empty
 
 test_missing_fields_filled_with_null
-    — mock returns a dict with several ExtractedFields fields omitted
-    — assert those fields are None in result
-    — assert field names appear in processing_metadata.extraction_warnings
+    — mock call_llm to return a well-formed dict but with "amount" and "currency"
+      absent from the nested "extracted_fields" dict (keys not present, not null)
+    — assert result.extracted_fields.amount is None
+    — assert result.extracted_fields.currency is None
+    — assert "amount: not returned by model" in extraction_warnings
+    — assert "currency: not returned by model" in extraction_warnings
+    — note: warnings are generated by post-parse key comparison in parse_extraction,
+      not by Pydantic ValidationError (Pydantic fills absent optional fields silently)
 
 test_extra_fields_ignored
     — mock returns a dict with unexpected extra keys

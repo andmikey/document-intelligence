@@ -78,7 +78,7 @@ Thresholds for low / medium / high risk labels are set arbitrarily in the absenc
 | Malformed LLM output | Single retry; if still malformed, partial result returned with warning |
 | Missing extracted fields | Filled with null; warning added to `extraction_warnings` |
 | Model refusal | Detected by absence of expected JSON structure; partial result returned with warning |
-| API timeout / rate limit | Single retry with exponential backoff; structured error returned on second failure |
+| API timeout / rate limit | Single retry; 5 s delay on 429 (rate limit), 2 s delay on timeout / 5xx; structured error returned on second failure |
 | Scoring failure after successful extraction | Extraction result returned with scoring warnings rather than discarding entirely |
 
 The guiding principle is **partial results over no results** - the output schema is always returned, even on failure, with explicit warnings indicating what succeeded and what did not.

@@ -123,7 +123,6 @@ CRYPTO_COMPENSATION = "cryptocurrency_compensation_mentioned"
 UNKNOWN_CONTACT = "unknown_contact_initiated"
 THIRD_PARTY_RECRUITER = "third_party_recruiter_referenced"
 REFERRAL_CODE_PRESENT = "referral_code_present"
-PLATFORM_MIGRATION = "platform_migration_requested"
 VAGUE_JOB_NO_SKILLS = "vague_job_no_skills_required"
 URGENCY_LANGUAGE = "urgency_language_present"
 SECRECY_INSTRUCTION = "secrecy_instruction_present"
@@ -136,7 +135,6 @@ PROMPTED_FLAGS = [
     UNKNOWN_CONTACT,
     THIRD_PARTY_RECRUITER,
     REFERRAL_CODE_PRESENT,
-    PLATFORM_MIGRATION,
     VAGUE_JOB_NO_SKILLS,
     URGENCY_LANGUAGE,
     SECRECY_INSTRUCTION,
@@ -311,7 +309,6 @@ structured `platform` field directly.
 | `UnknownContactRule` | `unknown_contact_initiated` | `contact` | 0.20 | `flags.UNKNOWN_CONTACT in fields.red_flags` |
 | `PersonalMessagingPlatformRule` | `personal_messaging_platform` | `contact` | 0.15 | `fields.platform` is not None and matches "whatsapp", "telegram", or "signal" (case-insensitive) |
 | `ThirdPartyReferralRule` | `third_party_referral` | `recruitment` | 0.20 | `flags.THIRD_PARTY_RECRUITER in fields.red_flags` OR `flags.REFERRAL_CODE_PRESENT in fields.red_flags` |
-| `PlatformMigrationRule` | `platform_migration_requested` | `recruitment` | 0.20 | `flags.PLATFORM_MIGRATION in fields.red_flags` |
 | `VagueJobDescriptionRule` | `vague_job_description` | `recruitment` | 0.15 | `flags.VAGUE_JOB_NO_SKILLS in fields.red_flags` |
 
 ---
@@ -326,7 +323,6 @@ from pipeline.rules.advance_fee import (
     UnknownContactRule,
     PersonalMessagingPlatformRule,
     ThirdPartyReferralRule,
-    PlatformMigrationRule,
     VagueJobDescriptionRule,
 )
 from pipeline.rules.base import BaseRule
@@ -336,7 +332,6 @@ RULES: list[BaseRule] = [
     UnknownContactRule(),
     PersonalMessagingPlatformRule(),
     ThirdPartyReferralRule(),
-    PlatformMigrationRule(),
     VagueJobDescriptionRule(),
 ]
 ```

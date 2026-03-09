@@ -2,6 +2,13 @@
 
 # Running the app
 
+Create a `.env` file in the root directory with:
+
+```
+OPENROUTER_API_KEY=your_api_key_here
+CONFIDENCE_THRESHOLD=0.6  # Optional, defaults to 0.6 - category classifications below this are flagged for human review
+```
+
 To run the **app**:
 ```sh 
 $ streamlit run app.py
@@ -17,14 +24,23 @@ To run the **tests**:
 $ python3 -m pytest tests/
 ```
 
-## Environment variables
+# Configuration
 
-Create a `.env` file in the root directory with:
+## Adding a new rule
 
-```
-OPENROUTER_API_KEY=your_api_key_here
-CONFIDENCE_THRESHOLD=0.6  # Optional, defaults to 0.6 - category classifications below this are flagged for human review
-```
+1. Create a new rule class in [`pipeline/rules/`](pipeline/rules/) that inherits from `BaseRule`
+2. Implement the `evaluate()` method to return a `RuleResult`
+3. Add the rule instance to the `RULES` list in [`pipeline/rules/__init__.py`](pipeline/rules/__init__.py)
+
+See [`pipeline/rules/advance_fee.py`](pipeline/rules/advance_fee.py) for examples.
+
+## Changing the model
+
+Edit `LLM_MODEL_NAME` in [`pipeline/constants.py`](pipeline/constants.py). Any OpenRouter-supported model can be used.
+
+## Changing risk thresholds
+
+Edit `RISK_THRESHOLD_LOW_MEDIUM` and `RISK_THRESHOLD_MEDIUM_HIGH` in [`pipeline/constants.py`](pipeline/constants.py). These control the low/medium/high risk label boundaries.
 
 # Design Notes
 

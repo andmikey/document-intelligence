@@ -1,8 +1,4 @@
-"""Single source of truth for red flag label constants.
-
-Both the prompt in extract.py and the rules in advance_fee.py must import from here
-— never hardcode label strings in two places.
-"""
+"""Single source of truth for red flag label constants."""
 
 # Labels the prompt instructs the model to use.
 # Rules check for exact membership using these constants.

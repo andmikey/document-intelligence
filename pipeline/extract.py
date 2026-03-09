@@ -9,6 +9,7 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from pipeline import flags
+from pipeline.constants import LLM_MODEL_NAME
 from pipeline.schemas import ExtractedFields, ExtractionResult, ProcessingMetadata
 
 
@@ -92,7 +93,7 @@ def call_llm(image_b64: str) -> tuple[dict, str, int]:
         api_key=api_key,
     )
 
-    model = "google/gemini-2.0-flash-001"
+    model = LLM_MODEL_NAME
     system_prompt, user_prompt = _build_prompt()
 
     messages = [
@@ -116,7 +117,7 @@ def call_llm(image_b64: str) -> tuple[dict, str, int]:
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
-                temperature=0,
+                temperature=0,  # Temperature 0 for (more) deterministic output
                 response_format={"type": "json_object"},
             )
             latency_ms = int((time.time() - start_time) * 1000)

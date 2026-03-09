@@ -2,16 +2,45 @@
 
 # Running the app
 
+Create a `.env` file in the root directory with:
+
+```
+OPENROUTER_API_KEY=your_api_key_here
+CONFIDENCE_THRESHOLD=0.6  # Optional, defaults to 0.6 - category classifications below this are flagged for human review
+```
+
 To run the **app**:
 ```sh 
 $ streamlit run app.py
 ```
+
+Upload a file and you'll see an output like this:
+![](./examples/dashboard_example.png)
+
 
 To run the **tests**:
 
 ```sh
 $ python3 -m pytest tests/
 ```
+
+# Configuration
+
+## Adding a new rule
+
+1. Create a new rule class in [`pipeline/rules/`](pipeline/rules/) that inherits from `BaseRule`
+2. Implement the `evaluate()` method to return a `RuleResult`
+3. Add the rule instance to the `RULES` list in [`pipeline/rules/__init__.py`](pipeline/rules/__init__.py)
+
+See [`pipeline/rules/advance_fee.py`](pipeline/rules/advance_fee.py) for examples.
+
+## Changing the model
+
+Edit `LLM_MODEL_NAME` in [`pipeline/constants.py`](pipeline/constants.py). Any OpenRouter-supported model can be used.
+
+## Changing risk thresholds
+
+Edit `RISK_THRESHOLD_LOW_MEDIUM` and `RISK_THRESHOLD_MEDIUM_HIGH` in [`pipeline/constants.py`](pipeline/constants.py). These control the low/medium/high risk label boundaries.
 
 # Design Notes
 
@@ -50,7 +79,7 @@ A single model call classifies the document and extracts structured fields into 
 
 To maximise output consistency:
 - Temperature is set to 0
-- Structured output enforcement (JSON mode / tool-calling) is used as the primary mechanism
+- Structured output enforcement (JSON mode) is used 
 - A single retry is attempted on malformed output before returning a partial result with warnings
 
 Confidence is self-reported by the model as a 0–1 field in the output schema. This is not a calibrated probability - it is best treated as a relative signal rather than an absolute one.
@@ -101,24 +130,20 @@ The guiding principle is **partial results over no results** - the output schema
 
 **Rules**
 - Implement rules for more fraud typologies. 
-- Add mandatory escalation rules that force a high risk label regardless of composite score for specific high-confidence signals (e.g. secrecy instruction present).
-- Implement rule versioning in a feature store mapping rule IDs to rule definitions, so that each output record captures the exact rule set version that produced it - important for audit.
+- Add mandatory escalation rules that force a high risk label regardless of composite score for specific high-confidence signals (e.g. secrecy instruction present), or for policy rules. 
+- Implement rule versioning in a feature store mapping rule IDs to rule definitions, so that each output record captures the exact rule set version that produced it.
 - Add centralised rule trigger logging to allow tracking of rule fire rates over time and catch rules that are over- or under-firing.
 - Tune rule defunitions and rule thresholds against a historical dataset.
 
 **Model**
 - Replace self-reported confidence with a proper calibrated classifier, either by fine-tuning on top of document embeddings or by running multiple inference passes at temperature > 0 and using agreement rate as a confidence proxy.
-- Add prompt injection mitigation - documents could contain text instructing the model to suppress red flags or change its category output.
 - Handle multi-page PDFs by summarising across pages before extraction.
-
-**Scoring**
-- Tune risk thresholds against a labelled historical dataset once one becomes available.
-- Investigate Bayesian / log-odds aggregation to handle correlated signals more rigorously.
 
 **Inputs**
 - Add PII detection before sending documents to a third-party API - in a production fraud context, documents may contain account numbers, passport scans, or other sensitive data that cannot be sent to an external API.
+- Cache responses on input files to reduce latency / cost if a file is uploaded multiple times.
 
 **Performance**
-- Add prompt caching to reduce per-call inference cost at scale.
-- Evaluate whether near-real-time micro-batching would reduce cost without meaningfully increasing analyst wait time.
-- Track whole-system performance against labelled outcomes once data is available: true positive rate / value detection rate at a fixed false positive rate or alert rate.
+- Add prompt caching to reduce per-call inference cost.
+- Track model performance on a set of post-hoc labelled examples (this could be done by e.g. allowing analyst edits to the output and tracking these edits vs the model's prediction).
+- Track whole-system performance against labelled outcomes once data is available: an example metric could be true positive rate / value detection rate at a fixed false positive rate or alert rate.

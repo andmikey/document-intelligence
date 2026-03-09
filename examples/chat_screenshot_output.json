@@ -1,0 +1,61 @@
+{
+  "file_id": "60229cf5-203c-4ca4-9210-ae5df9981516",
+  "category": "chat_screenshot",
+  "category_confidence": 0.95,
+  "extracted_fields": {
+    "entity_name": "ACCIO.com",
+    "amount": 4000.0,
+    "currency": "USDT",
+    "date": "April 28",
+    "counterparty": "Olina",
+    "platform": "Telegram",
+    "contact_details": "+44 73 7761 8918",
+    "red_flags": [
+      "unknown_contact_initiated",
+      "referral_code_present",
+      "vague_job_no_skills_required",
+      "cryptocurrency_compensation_mentioned",
+      "unverifiable_employer"
+    ]
+  },
+  "scoring_rules": [
+    {
+      "rule_id": "crypto_compensation",
+      "triggered": true,
+      "weight": 0.35,
+      "explanation": "cryptocurrency compensation mentioned"
+    },
+    {
+      "rule_id": "unknown_contact_initiated",
+      "triggered": true,
+      "weight": 0.2,
+      "explanation": "unknown contact initiated conversation"
+    },
+    {
+      "rule_id": "personal_messaging_platform",
+      "triggered": true,
+      "weight": 0.15,
+      "explanation": "personal messaging platform used"
+    },
+    {
+      "rule_id": "third_party_referral",
+      "triggered": true,
+      "weight": 0.2,
+      "explanation": "third-party referral present"
+    },
+    {
+      "rule_id": "vague_job_description",
+      "triggered": true,
+      "weight": 0.15,
+      "explanation": "vague job requiring no skills"
+    }
+  ],
+  "risk_score": 0.91,
+  "risk_label": "high",
+  "summary": "High risk: cryptocurrency compensation mentioned; unknown contact initiated conversation; personal messaging platform used; third-party referral present; vague job requiring no skills.",
+  "processing_metadata": {
+    "model_used": "google/gemini-2.0-flash-001",
+    "latency_ms": 4094,
+    "extraction_warnings": []
+  }
+}

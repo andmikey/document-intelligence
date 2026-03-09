@@ -2,6 +2,7 @@
 
 from typing import Literal
 
+from pipeline.constants import RISK_THRESHOLD_LOW_MEDIUM, RISK_THRESHOLD_MEDIUM_HIGH
 from pipeline.rules import RULES
 from pipeline.schemas import ExtractedFields, RuleResult
 
@@ -83,9 +84,9 @@ def assign_label(score: float) -> Literal["low", "medium", "high"]:
     Returns:
         Risk label: "low", "medium", or "high"
     """
-    if score < 0.35:
+    if score < RISK_THRESHOLD_LOW_MEDIUM:
         return "low"
-    elif score < 0.65:
+    elif score < RISK_THRESHOLD_MEDIUM_HIGH:
         return "medium"
     else:
         return "high"

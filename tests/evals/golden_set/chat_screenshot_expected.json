@@ -1,0 +1,21 @@
+{
+  "category": "chat_screenshot",
+  "category_confidence": 0.7,
+  "risk_label": "high",
+  "extracted_fields": {
+    "entity_name": "Slava",
+    "amount": 4000.0,
+    "currency": "USDT",
+    "date": "April 28",
+    "counterparty": "Olina",
+    "platform": "WhatsApp",
+    "contact_details": "+44 73 7761 8918",
+    "red_flags": [
+      "cryptocurrency_compensation_mentioned",
+      "unknown_contact_initiated",
+      "third_party_recruiter_referenced",
+      "referral_code_present",
+      "vague_job_no_skills_required"
+    ]
+  }
+}

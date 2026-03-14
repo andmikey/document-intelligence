@@ -5,3 +5,4 @@ pymupdf
 Pillow
 python-dotenv
 pytest
+pydantic-evals

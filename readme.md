@@ -24,6 +24,32 @@ To run the **tests**:
 $ python3 -m pytest tests/
 ```
 
+## Evals
+
+A small eval suite lives in `tests/evals/` using [Pydantic Evals](https://ai.pydantic.dev/evals/).
+Evals run the full pipeline against a golden document and assert on the output.
+Unlike unit tests, evals make real calls to the OpenRouter API because some tests involve LLM-as-a-judge. 
+Therefore, you need to have a valid `OPENROUTER_API_KEY` in `.env`. Evals are run using the model name specified by `LLM_MODEL_NAME` in `pipeline/constants.py`. 
+
+To run:
+
+```sh
+$ python -m pytest tests/evals/
+```
+
+### Evaluator summary
+
+| Eval | Field | Type | Rationale |
+|---|---|---|---|
+| json_valid | (structural) | Deterministic | Malformed JSON is unambiguous pass/fail |
+| category_correct | category | Deterministic | Bounded Literal set — exact equality appropriate |
+| risk_label_correct | risk_label | Deterministic | Bounded Literal set — tests full pipeline end-to-end |
+| amount_correct | extracted_fields.amount | Deterministic | Unambiguous numeric value |
+| currency_correct | extracted_fields.currency | Deterministic | Unambiguous string — case-insensitive equality |
+| contact_details_correct | extracted_fields.contact_details | LLM-as-judge | Phone formatting varies — judge handles format variation |
+| counterparty_correct | extracted_fields.counterparty | LLM-as-judge | Freeform name field — exact match too strict |
+| red_flags_no_judgements | extracted_fields.red_flags | LLM-as-judge | Detecting evaluative language requires semantic understanding |
+
 # Configuration
 
 ## Adding a new rule
@@ -41,6 +67,13 @@ Edit `LLM_MODEL_NAME` in [`pipeline/constants.py`](pipeline/constants.py). Any O
 ## Changing risk thresholds
 
 Edit `RISK_THRESHOLD_LOW_MEDIUM` and `RISK_THRESHOLD_MEDIUM_HIGH` in [`pipeline/constants.py`](pipeline/constants.py). These control the low/medium/high risk label boundaries.
+
+## Adding a new golden document to the evals
+
+1. Add the file to `tests/evals/golden_set/`
+2. Create a corresponding `_expected.json` with known correct field values
+3. Add a new `Case` to the `dataset` in `test_evals.py`
+4. No changes to `evals.py` are needed unless you want to add new evaluator types
 
 # Design Notes
 

@@ -1,4 +1,6 @@
-# Tunic Pay takehome: categorization and risk extraction
+# Document categorization and risk extraction
+
+Tl;dr: this is a document analysis pipeline for AI-assisted fraud operations on UK Faster Payments. It ingests uploaded evidence (PDF/image), uses an LLM to extract structured signals, and applies deterministic rules to produce an explainable low/medium/high risk assessment. It demonstrates practical agentic AI skills across LLM prompt/schema design, robust failure handling, rule-based risk modeling, and production-minded testing with a simple Streamlit interface.
 
 # Running the app
 
@@ -94,7 +96,7 @@ Other payment methods, inbound payments, AML, and automated real-time decisionin
 
 ## Fraud typology focus
 
-Due to time constraints, rules are implemented for one representative third-party fraud typology: **job scam / advance fee fraud**, as exemplified by the provided `chat_screenshot.png`. In this typology, a victim is recruited into a fake task-based job via an unsolicited message, earns some initial "commission" to build trust, and is then induced to make payments they cannot recover (e.g. to unlock higher earnings tiers).
+Rules are implemented for one representative third-party fraud typology: **job scam / advance fee fraud**, as exemplified by the provided `chat_screenshot.png`. In this typology, a victim is recruited into a fake task-based job via an unsolicited message, earns some initial "commission" to build trust, and is then induced to make payments they cannot recover (e.g. to unlock higher earnings tiers).
 
 First-party fraud, invoice fraud, purchase scams, impersonation scams, romance scams, and investment scams are out of scope for the current rule set, though the pipeline architecture is designed to accommodate additional typologies without structural changes.
 

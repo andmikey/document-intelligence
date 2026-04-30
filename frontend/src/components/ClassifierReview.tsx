@@ -43,9 +43,9 @@ export function ClassifierReview({
         please review and confirm or correct the document category before continuing.
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Document preview */}
-        <div className="md:col-span-1">
+        <div>
           <p className="text-sm font-medium text-gray-700 mb-2">
             Original Document
           </p>
@@ -63,7 +63,7 @@ export function ClassifierReview({
         </div>
 
         {/* Review form */}
-        <div className="md:col-span-2">
+        <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
             Classifier Review
           </h2>

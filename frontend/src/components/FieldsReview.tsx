@@ -57,9 +57,9 @@ export function FieldsReview({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Document preview */}
-        <div className="md:col-span-1">
+        <div>
           <p className="text-sm font-medium text-gray-700 mb-2">
             Original Document
           </p>
@@ -77,7 +77,7 @@ export function FieldsReview({
         </div>
 
         {/* Form */}
-        <div className="md:col-span-2">
+        <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
             Review Extracted Fields
           </h2>

@@ -86,7 +86,7 @@ def _await_fields_review(state: GraphState) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def build_graph(backend: BaseLLMBackend | None = None) -> Any:
+def build_graph(backend: BaseLLMBackend | None = None, headless: bool = False) -> Any:
     """Build and compile the StateGraph with a MemorySaver checkpointer.
 
     MemorySaver is required for interrupt_before to work — it persists the
@@ -94,6 +94,9 @@ def build_graph(backend: BaseLLMBackend | None = None) -> Any:
 
     Args:
         backend: LLM backend to use. Defaults to get_backend().
+        headless: When True, compile without interrupt points so the graph
+            runs end-to-end in a single invoke() call. Intended for automated
+            pipelines and evals where human-in-the-loop review is not needed.
 
     Returns:
         Compiled LangGraph graph (CompiledStateGraph).
@@ -118,9 +121,10 @@ def build_graph(backend: BaseLLMBackend | None = None) -> Any:
 
     # MemorySaver checkpointer is mandatory for interrupt_before to function
     checkpointer = MemorySaver()
+    interrupt_nodes = [] if headless else [AWAIT_CLASSIFIER_REVIEW, AWAIT_FIELDS_REVIEW]
     graph = builder.compile(
         checkpointer=checkpointer,
-        interrupt_before=[AWAIT_CLASSIFIER_REVIEW, AWAIT_FIELDS_REVIEW],
+        interrupt_before=interrupt_nodes,
     )
     return graph
 

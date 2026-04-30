@@ -31,6 +31,10 @@ class ProcessingMetadata(BaseModel):
     model_used: str
     latency_ms: int
     extraction_warnings: list[str]  # missing fields, parse issues, etc.
+    # Optional fields populated by multi-agent and HITL paths.
+    # Default to empty/single-model so existing single-call usage is unchanged.
+    analyst_interventions: list[str] = []
+    pipeline_mode: str = "single-model"
 
 
 class ExtractionResult(BaseModel):

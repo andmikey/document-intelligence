@@ -2,6 +2,7 @@ import json
 import uuid
 from pathlib import Path
 
+import pytest
 from pydantic_evals import Case, Dataset
 
 from pipeline.extract import extract
@@ -79,6 +80,7 @@ dataset = Dataset(
 )
 
 
+@pytest.mark.integration
 def test_evals():
     """
     Runs the full pipeline on each golden document and evaluates outputs.

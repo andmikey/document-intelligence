@@ -5,10 +5,12 @@ import { ScoringRulesTable } from "./ScoringRulesTable";
 
 interface ResultsViewProps {
   output: PipelineOutput;
+  imageB64: string | null;
   onReset: () => void;
 }
 
-export function ResultsView({ output, onReset }: ResultsViewProps) {
+export function ResultsView({ output, imageB64, onReset }: ResultsViewProps) {
+  const [showFields, setShowFields] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
   const [showRunLog, setShowRunLog] = useState(false);
 
@@ -34,14 +36,32 @@ export function ResultsView({ output, onReset }: ResultsViewProps) {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: Extracted fields */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        {/* Left: document image */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col">
           <h2 className="text-base font-semibold text-gray-900 mb-3">
-            Extracted Fields
+            Document
           </h2>
-          <pre className="text-xs text-gray-700 bg-gray-50 rounded p-3 overflow-x-auto whitespace-pre-wrap">
-            {JSON.stringify(output.extracted_fields, null, 2)}
-          </pre>
+          {output.processing_metadata && (
+            <p className="text-xs text-gray-500 mb-2">
+              Category:{" "}
+              <span className="font-medium text-gray-700">{output.category}</span>
+              {" "}({(output.category_confidence * 100).toFixed(0)}% confidence)
+            </p>
+          )}
+          {/* Show the document image if available, otherwise a polite fallback */}
+          <div className="flex-1">
+            {imageB64 ? (
+              <img
+                src={`data:image/jpeg;base64,${imageB64}`}
+                alt="Uploaded document"
+                className="w-full rounded border border-gray-200"
+              />
+            ) : (
+              <p className="text-sm text-gray-400 italic">
+                Document preview not available.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Right: Risk assessment */}
@@ -72,6 +92,25 @@ export function ResultsView({ output, onReset }: ResultsViewProps) {
             <ScoringRulesTable rules={output.scoring_rules} />
           </div>
         </div>
+      </div>
+
+      {/* Extracted fields (collapsible) */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <button
+          type="button"
+          onClick={() => setShowFields((v) => !v)}
+          className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 flex justify-between items-center"
+        >
+          <span>Extracted Fields</span>
+          <span>{showFields ? "▲" : "▼"}</span>
+        </button>
+        {showFields && (
+          <div className="px-4 pb-4">
+            <pre className="text-xs text-gray-700 bg-gray-50 rounded p-3 overflow-x-auto whitespace-pre-wrap">
+              {JSON.stringify(output.extracted_fields, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
 
       {/* Processing metadata */}

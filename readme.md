@@ -80,7 +80,7 @@ Upload a file and choose single-model or multi-agent mode:
 Review the extracted fields for correctness before you submit for risk flagging:
 ![](./examples/run_through/review.png)
 
-Finally, review the model risk assessment (you can also review the processing metadata and the traced run log):
+Finally, review the model risk assessment (you can also review the processing metadata, output JSON, and the traced run log):
 ![](./examples/run_through/output.png)
 
 ## Evals
@@ -267,6 +267,7 @@ The guiding principle is **partial results over no results** - the output schema
 **Model**
 - Replace self-reported confidence with a proper calibrated classifier, either by fine-tuning on top of document embeddings or by running multiple inference passes at temperature > 0 and using agreement rate as a confidence proxy.
 - Handle multi-page PDFs by summarising across pages before extraction.
+- Save any edits the analyst creates to how the model parsed an input file. This allows us to create a human-labelled eval set that we can use to track the performance of the model over time.
 
 **Inputs**
 - Add PII detection before sending documents to a third-party API - in a production fraud context, documents may contain account numbers, passport scans, or other sensitive data that cannot be sent to an external API.

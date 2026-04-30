@@ -45,12 +45,12 @@ const baseOutput: PipelineOutput = {
 
 describe("ResultsView", () => {
   it("displays the risk score", () => {
-    render(<ResultsView output={baseOutput} onReset={vi.fn()} />);
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={vi.fn()} />);
     expect(screen.getByText("0.32")).toBeInTheDocument();
   });
 
   it("shows LOW RISK badge for low label", () => {
-    render(<ResultsView output={baseOutput} onReset={vi.fn()} />);
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={vi.fn()} />);
     expect(screen.getByTestId("risk-badge")).toHaveTextContent(/low risk/i);
   });
 
@@ -58,6 +58,7 @@ describe("ResultsView", () => {
     render(
       <ResultsView
         output={{ ...baseOutput, risk_label: "high" }}
+        imageB64={null}
         onReset={vi.fn()}
       />
     );
@@ -65,13 +66,13 @@ describe("ResultsView", () => {
   });
 
   it("renders scoring rules table with triggered rule", () => {
-    render(<ResultsView output={baseOutput} onReset={vi.fn()} />);
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={vi.fn()} />);
     expect(screen.getByText("crypto_compensation")).toBeInTheDocument();
     expect(screen.getByText("Cryptocurrency mentioned as payment method.")).toBeInTheDocument();
   });
 
   it("shows '—' for untriggered rule explanation", () => {
-    render(<ResultsView output={baseOutput} onReset={vi.fn()} />);
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={vi.fn()} />);
     expect(screen.getByText("unknown_contact_initiated")).toBeInTheDocument();
     // The explanation cell for untriggered rule should be "—"
     const cells = screen.getAllByText("—");
@@ -79,14 +80,14 @@ describe("ResultsView", () => {
   });
 
   it("download link has correct filename", () => {
-    render(<ResultsView output={baseOutput} onReset={vi.fn()} />);
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={vi.fn()} />);
     const link = screen.getByTestId("download-btn") as HTMLAnchorElement;
     expect(link.download).toBe("risk_extraction_abc-123.json");
   });
 
   it("calls onReset when reset button is clicked", () => {
     const onReset = vi.fn();
-    render(<ResultsView output={baseOutput} onReset={onReset} />);
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={onReset} />);
     fireEvent.click(screen.getByRole("button", { name: /analyse another/i }));
     expect(onReset).toHaveBeenCalledOnce();
   });
@@ -101,6 +102,7 @@ describe("ResultsView", () => {
             analyst_interventions: ["category changed: other → invoice"],
           },
         }}
+        imageB64={null}
         onReset={vi.fn()}
       />
     );
@@ -111,6 +113,7 @@ describe("ResultsView", () => {
     render(
       <ResultsView
         output={{ ...baseOutput, category_confidence: 0.4 }}
+        imageB64={null}
         onReset={vi.fn()}
       />
     );
@@ -118,7 +121,18 @@ describe("ResultsView", () => {
   });
 
   it("does not show low confidence warning for high confidence", () => {
-    render(<ResultsView output={baseOutput} onReset={vi.fn()} />);
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={vi.fn()} />);
     expect(screen.queryByText(/low confidence classification/i)).toBeNull();
+  });
+
+  it("renders document image when imageB64 provided", () => {
+    render(<ResultsView output={baseOutput} imageB64="abc123" onReset={vi.fn()} />);
+    const img = screen.getByRole("img") as HTMLImageElement;
+    expect(img.src).toContain("base64,abc123");
+  });
+
+  it("shows fallback text when imageB64 is null", () => {
+    render(<ResultsView output={baseOutput} imageB64={null} onReset={vi.fn()} />);
+    expect(screen.getByText(/document preview not available/i)).toBeInTheDocument();
   });
 });

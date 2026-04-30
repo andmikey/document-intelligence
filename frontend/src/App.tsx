@@ -100,7 +100,7 @@ export default function App() {
         </p>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {error && (
           <div
             role="alert"
@@ -145,7 +145,7 @@ export default function App() {
         )}
 
         {stage === "complete" && output && (
-          <ResultsView output={output} onReset={handleReset} />
+          <ResultsView output={output} imageB64={imageB64} onReset={handleReset} />
         )}
       </main>
     </div>

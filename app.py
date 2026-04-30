@@ -13,6 +13,7 @@ Stage machine
   stages without recomputing prior work.
 """
 
+import base64
 import json
 import os
 import traceback
@@ -180,41 +181,49 @@ def _render_fields_form(fields: dict[str, Any]) -> None:
     st.subheader("Review Extracted Fields")
     st.markdown("Confirm or edit the extracted fields before scoring.")
 
-    if ss.extraction_warnings:
-        with st.expander("⚠️ Extraction warnings"):
-            for w in ss.extraction_warnings:
-                st.markdown(f"- `{w}`")
+    img_col, form_col = st.columns([1, 2])
 
-    with st.form("fields_review_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            entity_name = st.text_input(
-                "Entity name", value=fields.get("entity_name") or ""
-            )
-            amount_raw = st.text_input(
-                "Amount",
-                value=(
-                    str(fields.get("amount"))
-                    if fields.get("amount") is not None
-                    else ""
-                ),
-            )
-            currency = st.text_input("Currency", value=fields.get("currency") or "")
-            date = st.text_input("Date", value=fields.get("date") or "")
-        with col2:
-            counterparty = st.text_input(
-                "Counterparty", value=fields.get("counterparty") or ""
-            )
-            platform = st.text_input("Platform", value=fields.get("platform") or "")
-            contact_details = st.text_input(
-                "Contact details", value=fields.get("contact_details") or ""
-            )
-            red_flags_raw = st.text_area(
-                "Red flags (one per line)",
-                value="\n".join(fields.get("red_flags") or []),
-                height=120,
-            )
-        submitted = st.form_submit_button("Continue →")
+    with img_col:
+        st.markdown("**Original Document**")
+        if ss.image_b64:
+            st.image(base64.b64decode(ss.image_b64), use_container_width=True)
+
+    with form_col:
+        if ss.extraction_warnings:
+            with st.expander("⚠️ Extraction warnings"):
+                for w in ss.extraction_warnings:
+                    st.markdown(f"- `{w}`")
+
+        with st.form("fields_review_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                entity_name = st.text_input(
+                    "Entity name", value=fields.get("entity_name") or ""
+                )
+                amount_raw = st.text_input(
+                    "Amount",
+                    value=(
+                        str(fields.get("amount"))
+                        if fields.get("amount") is not None
+                        else ""
+                    ),
+                )
+                currency = st.text_input("Currency", value=fields.get("currency") or "")
+                date = st.text_input("Date", value=fields.get("date") or "")
+            with col2:
+                counterparty = st.text_input(
+                    "Counterparty", value=fields.get("counterparty") or ""
+                )
+                platform = st.text_input("Platform", value=fields.get("platform") or "")
+                contact_details = st.text_input(
+                    "Contact details", value=fields.get("contact_details") or ""
+                )
+                red_flags_raw = st.text_area(
+                    "Red flags (one per line)",
+                    value="\n".join(fields.get("red_flags") or []),
+                    height=120,
+                )
+            submitted = st.form_submit_button("Continue →")
 
     if submitted:
         try:
@@ -331,25 +340,33 @@ elif ss.stage == "classifier_review":
         else len(_CATEGORY_OPTIONS) - 1
     )
 
-    with st.form("classifier_review_form"):
-        st.subheader("Classifier Review")
-        st.markdown(
-            f"**Model output:** `{ss.classifier_category}` "
-            f"(confidence: {ss.classifier_confidence:.0%})"
-        )
-        selected_category = st.selectbox(
-            "Confirm or correct category",
-            options=_CATEGORY_OPTIONS,
-            index=current_idx,
-        )
-        confirmed_confidence = st.slider(
-            "Adjusted confidence",
-            min_value=0.0,
-            max_value=1.0,
-            value=ss.classifier_confidence,
-            step=0.05,
-        )
-        submitted = st.form_submit_button("Continue →")
+    img_col, form_col = st.columns([1, 2])
+
+    with img_col:
+        st.markdown("**Original Document**")
+        if ss.image_b64:
+            st.image(base64.b64decode(ss.image_b64), use_container_width=True)
+
+    with form_col:
+        with st.form("classifier_review_form"):
+            st.subheader("Classifier Review")
+            st.markdown(
+                f"**Model output:** `{ss.classifier_category}` "
+                f"(confidence: {ss.classifier_confidence:.0%})"
+            )
+            selected_category = st.selectbox(
+                "Confirm or correct category",
+                options=_CATEGORY_OPTIONS,
+                index=current_idx,
+            )
+            confirmed_confidence = st.slider(
+                "Adjusted confidence",
+                min_value=0.0,
+                max_value=1.0,
+                value=ss.classifier_confidence,
+                step=0.05,
+            )
+            submitted = st.form_submit_button("Continue →")
 
     if submitted:
         ss.analyst_category = selected_category

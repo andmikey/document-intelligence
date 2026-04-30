@@ -14,7 +14,7 @@ export function FieldsReview({
   imageB64,
   onConfirm,
 }: FieldsReviewProps) {
-  const f = fields ?? {};
+  const f: Partial<ExtractedFields> = fields ?? {};
 
   const [entityName, setEntityName] = useState(f.entity_name ?? "");
   const [amountRaw, setAmountRaw] = useState(
@@ -40,7 +40,7 @@ export function FieldsReview({
 
     const red_flags = redFlagsRaw
       .split("\n")
-      .map((s) => s.trim())
+      .map((s: string) => s.trim())
       .filter(Boolean);
 
     onConfirm({

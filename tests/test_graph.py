@@ -230,12 +230,32 @@ class TestAssembleOutput:
         interventions = output.processing_metadata.analyst_interventions
         assert any("category changed" in i for i in interventions)
 
-    def test_fields_review_recorded_in_interventions(self):
+    def test_fields_review_recorded_in_interventions_when_changed(self):
+        """Intervention is recorded only when analyst actually edits a field."""
+        g = _fresh_graph()
+        fid = str(uuid.uuid4())
+        state = start_graph(g, file_id=fid, image_b64="test_image_b64")
+        state = resume_after_classifier(
+            g,
+            file_id=fid,
+            analyst_category=state.get("classifier_category", "other"),
+            analyst_confidence=float(state.get("classifier_confidence") or 0.0),
+        )
+        # Edit one field so analyst_fields differs from extracted_fields
+        modified = dict(state.get("extracted_fields") or {})
+        modified["entity_name"] = "__analyst_edit__"
+        state = resume_after_fields(g, file_id=fid, analyst_fields=modified)
+        output = assemble_output(state, fid)
+        interventions = output.processing_metadata.analyst_interventions
+        assert any("fields reviewed" in i for i in interventions)
+
+    def test_fields_review_not_recorded_when_unchanged(self):
+        """No intervention is recorded when the analyst confirms without edits."""
         fid = str(uuid.uuid4())
         state = _run_full(file_id=fid)
         output = assemble_output(state, fid)
         interventions = output.processing_metadata.analyst_interventions
-        assert any("fields reviewed" in i for i in interventions)
+        assert not any("fields reviewed" in i for i in interventions)
 
     def test_schema_matches_pipeline_output(self):
         """PipelineOutput.model_dump() must be JSON-serialisable without errors."""

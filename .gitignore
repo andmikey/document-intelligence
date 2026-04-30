@@ -2,3 +2,4 @@
 .env
 .venv
 *.jsonl
+frontend/node_modules

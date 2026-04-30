@@ -1,16 +1,26 @@
 """LLM extraction and parsing logic."""
 
+import hashlib
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 from openai import OpenAI
 from pydantic import ValidationError
 
 from pipeline import flags
-from pipeline.constants import LLM_MODEL_NAME
+from pipeline.constants import LOCAL_DEV_MODE, LLM_MODEL_NAME
 from pipeline.schemas import ExtractedFields, ExtractionResult, ProcessingMetadata
+
+# ---------------------------------------------------------------------------
+# Fixture paths (shared with LocalFixtureBackend)
+# ---------------------------------------------------------------------------
+
+_FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures"
+_CLASSIFIER_FIXTURE = _FIXTURES_DIR / "classifier_fixture.json"
+_EXTRACTOR_FIXTURE = _FIXTURES_DIR / "extractor_fixture.json"
 
 
 class LLMCallError(Exception):
@@ -72,6 +82,30 @@ category assignment. This is your self-assessed confidence, not a calibrated pro
     return system_prompt, user_prompt
 
 
+def _fixture_lookup(data: dict, image_b64: str) -> dict:
+    """Return the fixture entry for this image, falling back to 'default'."""
+    prefix = hashlib.sha256(image_b64.encode()).hexdigest()[:12]
+    return dict(data.get(prefix, data["default"]))
+
+
+def _call_llm_fixture(image_b64: str) -> tuple[dict, str, int]:
+    """Return a combined classifier+extractor response from fixture files."""
+    with open(_CLASSIFIER_FIXTURE) as f:
+        classifier_data = json.load(f)
+    with open(_EXTRACTOR_FIXTURE) as f:
+        extractor_data = json.load(f)
+
+    classifier_entry = _fixture_lookup(classifier_data, image_b64)
+    extractor_entry = _fixture_lookup(extractor_data, image_b64)
+
+    combined = {
+        "category": classifier_entry.get("category", "other"),
+        "category_confidence": classifier_entry.get("category_confidence", 0.0),
+        "extracted_fields": extractor_entry,
+    }
+    return combined, "local_fixture", 0
+
+
 def call_llm(image_b64: str) -> tuple[dict, str, int]:
     """Call LLM with image and return parsed response.
 
@@ -84,6 +118,9 @@ def call_llm(image_b64: str) -> tuple[dict, str, int]:
     Raises:
         LLMCallError: If call fails after retries
     """
+    if LOCAL_DEV_MODE:
+        return _call_llm_fixture(image_b64)
+
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise LLMCallError("OPENROUTER_API_KEY not set")

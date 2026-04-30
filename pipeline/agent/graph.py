@@ -253,7 +253,9 @@ def assemble_output(state: dict[str, Any], file_id: str):
                 f"category changed: {orig} → {state['analyst_category']}"
             )
     if state.get("fields_reviewed") and state.get("analyst_fields") is not None:
-        analyst_interventions.append("extracted fields reviewed by analyst")
+        orig_fields = state.get("extracted_fields") or {}
+        if state["analyst_fields"] != orig_fields:
+            analyst_interventions.append("extracted fields reviewed by analyst")
 
     timings: dict[str, int] = state.get("step_timings") or {}
     total_latency = sum(timings.values())

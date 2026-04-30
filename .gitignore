@@ -1,5 +1,5 @@
 *.pyc
 .env
 .venv
-*.jsonl
+logs/*
 frontend/node_modules

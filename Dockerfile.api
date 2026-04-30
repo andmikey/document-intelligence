@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY pipeline/ ./pipeline/
 COPY api/ ./api/
+COPY tests/fixtures/ ./tests/fixtures/
 
 # Logs directory (also mounted as a volume in docker-compose)
 RUN mkdir -p logs

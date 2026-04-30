@@ -1,14 +1,26 @@
 # Document categorization and risk extraction
 
-Tl;dr: this is a document analysis pipeline for AI-assisted fraud operations on UK Faster Payments. It ingests uploaded evidence (PDF/image), uses an LLM to extract structured signals, and applies deterministic rules to produce an explainable low/medium/high risk assessment. It demonstrates practical agentic AI skills across LLM prompt/schema design, robust failure handling, rule-based risk modeling, and production-minded testing with a simple Streamlit interface.
+Tl;dr: this is a document analysis pipeline for AI-assisted fraud operations on UK Faster Payments. It ingests uploaded evidence (PDF/image), uses an LLM to extract structured signals, and applies deterministic rules to produce an explainable low/medium/high risk assessment. It demonstrates practical agentic AI skills across LLM prompt/schema design, robust failure handling, rule-based risk modeling, human-in-the-loop review, LangGraph multi-agent orchestration, and production-minded testing with a simple Streamlit interface.
 
 # Running the app
 
-Create a `.env` file in the root directory with:
+Create a `.env` file in the root directory. The app runs fully offline by default (no API key needed) using local fixture data.
 
 ```
+# Required for real LLM calls — omit to run in offline/fixture mode
 OPENROUTER_API_KEY=your_api_key_here
-CONFIDENCE_THRESHOLD=0.6  # Optional, defaults to 0.6 - category classifications below this are flagged for human review
+
+# Switch to remote LLM backend (default: false — local fixture backend)
+LOCAL_DEV_MODE=false
+ALLOW_NETWORK_CALLS=true
+
+# Confidence thresholds
+CONFIDENCE_THRESHOLD=0.6          # Low-confidence banner threshold
+CLASSIFIER_CONFIDENCE_THRESHOLD=0.6  # Triggers analyst review checkpoint
+
+# Optional: LangSmith tracing (omit to disable — app works without it)
+LANGSMITH_API_KEY=your_langsmith_key
+LANGSMITH_PROJECT=document-intelligence
 ```
 
 To run the **app**:
@@ -20,7 +32,7 @@ Upload a file and you'll see an output like this:
 ![](./examples/dashboard_example.png)
 
 
-To run the **tests**:
+To run the **tests** (fully offline, no API key needed):
 
 ```sh
 $ python3 -m pytest tests/
@@ -33,11 +45,13 @@ Evals run the full pipeline against a golden document and assert on the output.
 Unlike unit tests, evals make real calls to the OpenRouter API because some tests involve LLM-as-a-judge. 
 Therefore, you need to have a valid `OPENROUTER_API_KEY` in `.env`. Evals are run using the model name specified by `LLM_MODEL_NAME` in `pipeline/constants.py`. 
 
-To run:
+To run (requires `OPENROUTER_API_KEY` in `.env`):
 
 ```sh
-$ python -m pytest tests/evals/
+$ ALLOW_NETWORK_CALLS=true python -m pytest tests/evals/ -m integration
 ```
+
+Note: eval tests are marked `@pytest.mark.integration` and are excluded from the default `pytest tests/` run so they don't fire in offline / CI mode.
 
 ### Evaluator summary
 
@@ -104,28 +118,63 @@ First-party fraud, invoice fraud, purchase scams, impersonation scams, romance s
 
 ## Architecture
 
-The pipeline is split into four clearly separated stages:
+The pipeline has four stages common to both modes:
 
 **1. Ingestion and validation**
 Accepts PDF, PNG, and JPEG. Validates file type, size, and basic integrity before passing to the model. Unsupported types, corrupt files, and oversized uploads return a structured error in the standard output schema rather than an unhandled exception.
 
-**2. LLM/VLM extraction**
-A single model call classifies the document and extracts structured fields into a typed JSON schema (see Output Contract below). The model's role is strictly to *observe and describe* - it extracts factual attributes and surface-level red flags (e.g. `"cryptocurrency_compensation_mentioned"`) but makes no fraud judgements. All fraud reasoning lives in the scoring layer.
+**2. Classification and extraction**
+The document is classified into a category and structured fields are extracted into a typed JSON schema. The model's role is strictly to *observe and describe* — it extracts factual attributes and surface-level red flags (e.g. `"cryptocurrency_compensation_mentioned"`) but makes no fraud judgements. All fraud reasoning lives in the scoring layer.
+
+In **single-model mode** this is a single combined LLM call. In **multi-agent mode** a LangGraph `StateGraph` splits this into two sequential nodes — a classify node followed by a category-conditioned extract node — with an optional analyst review checkpoint between them.
 
 To maximise output consistency:
 - Temperature is set to 0
-- Structured output enforcement (JSON mode) is used 
+- Structured output enforcement (JSON mode) is used
 - A single retry is attempted on malformed output before returning a partial result with warnings
 
-Confidence is self-reported by the model as a 0–1 field in the output schema. This is not a calibrated probability - it is best treated as a relative signal rather than an absolute one.
+Confidence is self-reported by the model as a 0–1 field in the output schema. This is not a calibrated probability — it is best treated as a relative signal rather than an absolute one.
 
 **3. Deterministic scoring**
 A set of independently testable rules operate on the extracted fields to produce a structured risk assessment. Each rule returns `{rule_id, triggered, weight, explanation}`. Rules are grouped into thematic buckets (e.g. contact signals, compensation signals, identity signals), with the contribution from each bucket capped to prevent correlated rules from dominating the score. The final composite score (0–1) is mapped to a risk label (low / medium / high) using fixed thresholds.
 
-Adding a new rule requires only implementing a function with the standard rule interface and registering it - no existing rules need to be modified.
+Adding a new rule requires only implementing a function with the standard rule interface and registering it — no existing rules need to be modified.
 
 **4. Output assembly**
-Results are assembled into the standard output contract and returned to the UI.
+Results are assembled into the standard output contract and returned to the UI. Any analyst edits made at the HITL checkpoints are recorded in `processing_metadata.analyst_interventions` and reflected in the final output.
+
+### Human-in-the-loop checkpoints (both modes)
+
+Both pipeline modes share two analyst checkpoints before scoring runs:
+
+1. **Classifier review** — shown when `category_confidence < CLASSIFIER_CONFIDENCE_THRESHOLD`. The analyst can confirm or correct the category and adjust the confidence value. Auto-confirmed and skipped if confidence is at or above threshold.
+
+2. **Field-edit review** — always shown before scoring. The analyst sees all extracted fields in an editable form and must click Continue. Any edits are recorded in `processing_metadata.analyst_interventions` and reflected in the final output and run log.
+
+In multi-agent mode these checkpoints are implemented as LangGraph `interrupt_before` nodes on a `MemorySaver`-backed graph. The Streamlit UI resumes execution by calling `graph.update_state()` with analyst edits then `graph.invoke(None, config=config)`.
+
+### Pluggable LLM backends
+
+The `BaseLLMBackend` interface in `pipeline/agent/backends.py` decouples the graph nodes from the LLM provider:
+
+| Backend | When used | Network |
+|---|---|---|
+| `LocalFixtureBackend` | `LOCAL_DEV_MODE=true` (default) | None — reads from `tests/fixtures/` |
+| `OpenRouterBackend` | `LOCAL_DEV_MODE=false` + `ALLOW_NETWORK_CALLS=true` + key set | OpenRouter API |
+
+This means the full UI flow, all unit tests, and CI can run without an API key. Set `LOCAL_DEV_MODE=false` and `ALLOW_NETWORK_CALLS=true` to switch to live model calls.
+
+### Observability
+
+Every pipeline run (both modes) appends one JSON line to `logs/pipeline_runs.jsonl` containing:
+- `file_id`, `pipeline_mode`, `timestamp_utc`
+- Per-step latencies (`step_timings_ms`) and total latency
+- `extraction_warnings`, `analyst_interventions`
+- `risk_score`, `risk_label`
+- `langsmith_run_url` / `trace_id` (populated when LangSmith is configured)
+- `cost_info` (populated when remote backend returns token usage; `"not_available_in_local_mode"` otherwise)
+
+**LangSmith** tracing is optional. Set `LANGSMITH_API_KEY` and `LANGSMITH_PROJECT` to enable it. When those variables are absent the app runs identically with no remote tracing. The run log expander in the UI shows the current-run record regardless of LangSmith status.
 
 ---
 

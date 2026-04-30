@@ -1,0 +1,19 @@
+{
+  "_comment": "Offline fixture for the extractor node. Used by LocalFixtureBackend when LOCAL_DEV_MODE=true. The 'default' entry is returned for any image not matched by sha256 prefix.",
+  "default": {
+    "entity_name": "ACCIO.com",
+    "amount": 4000.0,
+    "currency": "USDT",
+    "date": "April 28",
+    "counterparty": "Olina",
+    "platform": "Telegram",
+    "contact_details": "+44 73 7761 8918",
+    "red_flags": [
+      "unknown_contact_initiated",
+      "referral_code_present",
+      "vague_job_no_skills_required",
+      "cryptocurrency_compensation_mentioned",
+      "unverifiable_employer"
+    ]
+  }
+}

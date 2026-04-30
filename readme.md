@@ -4,29 +4,45 @@ Tl;dr: this is a document analysis pipeline for AI-assisted fraud operations on 
 
 # Running the app
 
-Create a `.env` file in the root directory. The app runs fully offline by default (no API key needed) using local fixture data.
+## Set up the env file
 
-```
-# Required for real LLM calls — omit to run in offline/fixture mode
-OPENROUTER_API_KEY=your_api_key_here
+Copy `.env.example` to `.env` and fill in your values. The app runs fully offline by default (no API key needed) using local fixture data.
 
-# Switch to remote LLM backend (default: false — local fixture backend)
-LOCAL_DEV_MODE=false
-ALLOW_NETWORK_CALLS=true
-
-# Confidence thresholds
-CONFIDENCE_THRESHOLD=0.6          # Low-confidence banner threshold
-CLASSIFIER_CONFIDENCE_THRESHOLD=0.6  # Triggers analyst review checkpoint
-
-# Optional: LangSmith tracing (omit to disable — app works without it)
-LANGSMITH_API_KEY=your_langsmith_key
-LANGSMITH_PROJECT=document-intelligence
+```sh
+cp .env.example .env
 ```
 
-To run the **app**:
-```sh 
-$ streamlit run app.py
+
+## Run the app
+
+**With Docker:**
+
+```sh
+docker build -t document-intelligence .
+docker run --rm -p 8501:8501 \
+  --env-file .env \
+  -v "$PWD/logs:/app/logs" \
+  document-intelligence
 ```
+
+Open [http://localhost:8501](http://localhost:8501) in your browser.
+
+> **Note:** uploaded files are processed in-memory and never written to disk. The only persistent output is the run log written to `logs/pipeline_runs.jsonl` (via the mounted volume).
+
+**Without Docker:**
+
+```sh
+streamlit run app.py
+```
+
+
+To run the **tests** (fully offline, no API key needed):
+
+```sh
+$ python3 -m pytest tests/
+```
+
+## Using the UI
 
 Upload a file and choose single-model or multi-agent mode: 
 ![](./examples/run_through/upload.png)
@@ -37,12 +53,6 @@ Review the extracted fields for correctness before you submit for risk flagging:
 Finally, review the model risk assessment (you can also review the processing metadata and the traced run log):
 ![](./examples/run_through/output.png)
 
-
-To run the **tests** (fully offline, no API key needed):
-
-```sh
-$ python3 -m pytest tests/
-```
 
 ## Evals
 

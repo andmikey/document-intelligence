@@ -11,6 +11,16 @@ Topics covered:
 - Observability, including with LangSmith
 - Robust failure handling
 
+# Architecture
+
+```
+frontend/   React + TypeScript SPA (Vite, Tailwind)
+api/        FastAPI backend — wraps the pipeline for HTTP
+pipeline/   Core logic: ingest, classify, extract, score 
+```
+
+The frontend is served by nginx (port 3000). nginx proxies `/api/*` to the FastAPI service (port 8000). 
+
 # Running the app
 
 ## Set up the env file
@@ -21,34 +31,45 @@ Copy `.env.example` to `.env` and fill in your values. The app runs fully offlin
 cp .env.example .env
 ```
 
-
-## Run the app
-
-**With Docker:**
+## With Docker Compose (recommended)
 
 ```sh
-docker build -t document-intelligence .
-docker run --rm -p 8501:8501 \
-  --env-file .env \
-  -v "$PWD/logs:/app/logs" \
-  document-intelligence
+docker compose up --build
 ```
 
-Open [http://localhost:8501](http://localhost:8501) in your browser.
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-> **Note:** uploaded files are processed in-memory and never written to disk. The only persistent output is the run log written to `logs/pipeline_runs.jsonl` (via the mounted volume).
+> Uploaded files are processed in-memory and never written to disk. The only persistent output is the run log at `logs/pipeline_runs.jsonl` (mounted volume).
 
-**Without Docker:**
+## Local development (no Docker)
 
+**API** (terminal 1):
 ```sh
-streamlit run app.py
+pip install -r requirements.txt
+uvicorn api.main:app --reload --port 8000
 ```
 
-
-To run the **tests** (fully offline, no API key needed):
-
+**Frontend** (terminal 2):
 ```sh
-$ python3 -m pytest tests/
+cd frontend
+npm install
+npm run dev        # Vite dev server at http://localhost:5173
+```
+
+The Vite dev server proxies `/api` to `http://localhost:8000` automatically.
+
+## Tests
+
+**Python** (pipeline unit tests + API endpoint tests, fully offline):
+```sh
+python3 -m pytest tests/
+```
+
+**TypeScript** (component + api client tests):
+```sh
+cd frontend
+npm test
 ```
 
 ## Using the UI
@@ -59,9 +80,8 @@ Upload a file and choose single-model or multi-agent mode:
 Review the extracted fields for correctness before you submit for risk flagging:
 ![](./examples/run_through/review.png)
 
-Finally, review the model risk assessment (you can also review the processing metadata and the traced run log):
+Finally, review the model risk assessment (you can also review the processing metadata, output JSON, and the traced run log):
 ![](./examples/run_through/output.png)
-
 
 ## Evals
 
@@ -247,6 +267,7 @@ The guiding principle is **partial results over no results** - the output schema
 **Model**
 - Replace self-reported confidence with a proper calibrated classifier, either by fine-tuning on top of document embeddings or by running multiple inference passes at temperature > 0 and using agreement rate as a confidence proxy.
 - Handle multi-page PDFs by summarising across pages before extraction.
+- Save any edits the analyst creates to how the model parsed an input file. This allows us to create a human-labelled eval set that we can use to track the performance of the model over time.
 
 **Inputs**
 - Add PII detection before sending documents to a third-party API - in a production fraud context, documents may contain account numbers, passport scans, or other sensitive data that cannot be sent to an external API.

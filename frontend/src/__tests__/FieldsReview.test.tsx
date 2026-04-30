@@ -39,7 +39,7 @@ describe("FieldsReview", () => {
     expect(screen.getByDisplayValue("750.5")).toBeInTheDocument();
   });
 
-  it("renders red_flags as one-per-line in textarea", () => {
+  it("renders red_flags as a read-only list", () => {
     render(
       <FieldsReview
         fields={baseFields}
@@ -48,12 +48,14 @@ describe("FieldsReview", () => {
         onConfirm={vi.fn()}
       />
     );
-    const textarea = screen.getByRole("textbox", {
-      name: /red flags/i,
-    }) as HTMLTextAreaElement;
-    expect(textarea.value).toBe(
-      "cryptocurrency_compensation_mentioned\nunknown_contact_initiated"
-    );
+    expect(
+      screen.getByText("cryptocurrency_compensation_mentioned")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("unknown_contact_initiated")
+    ).toBeInTheDocument();
+    // Should not be an editable textarea
+    expect(screen.queryByRole("textbox", { name: /red flags/i })).toBeNull();
   });
 
   it("submits parsed ExtractedFields with amount as number", () => {
@@ -87,7 +89,7 @@ describe("FieldsReview", () => {
     expect(submitted.amount).toBeNull();
   });
 
-  it("splits red_flags textarea by newline on submit", () => {
+  it("passes through red_flags unchanged from props on submit", () => {
     const onConfirm = vi.fn();
     render(
       <FieldsReview

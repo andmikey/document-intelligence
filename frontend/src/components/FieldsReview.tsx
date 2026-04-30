@@ -25,9 +25,6 @@ export function FieldsReview({
   const [counterparty, setCounterparty] = useState(f.counterparty ?? "");
   const [platform, setPlatform] = useState(f.platform ?? "");
   const [contactDetails, setContactDetails] = useState(f.contact_details ?? "");
-  const [redFlagsRaw, setRedFlagsRaw] = useState(
-    (f.red_flags ?? []).join("\n")
-  );
   const [showWarnings, setShowWarnings] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,11 +35,6 @@ export function FieldsReview({
         ? Number(amountRaw)
         : null;
 
-    const red_flags = redFlagsRaw
-      .split("\n")
-      .map((s: string) => s.trim())
-      .filter(Boolean);
-
     onConfirm({
       entity_name: entityName.trim() || null,
       amount,
@@ -51,7 +43,8 @@ export function FieldsReview({
       counterparty: counterparty.trim() || null,
       platform: platform.trim() || null,
       contact_details: contactDetails.trim() || null,
-      red_flags,
+      // Red flags are passed through unchanged from the extraction output.
+      red_flags: f.red_flags ?? [],
     });
   };
 
@@ -147,23 +140,16 @@ export function FieldsReview({
               </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="red-flags"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Red flags{" "}
-                <span className="text-gray-400 font-normal">(one per line)</span>
-              </label>
-              <textarea
-                id="red-flags"
-                value={redFlagsRaw}
-                onChange={(e) => setRedFlagsRaw(e.target.value)}
-                rows={4}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                placeholder="e.g. cryptocurrency_compensation_mentioned"
-              />
-            </div>
+            {(f.red_flags ?? []).length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Red flags</p>
+                <ul className="text-xs font-mono text-gray-600 bg-gray-50 border border-gray-200 rounded p-3 space-y-1">
+                  {(f.red_flags ?? []).map((flag, i) => (
+                    <li key={i}>{flag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <button
               type="submit"

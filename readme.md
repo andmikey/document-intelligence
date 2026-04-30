@@ -1,6 +1,15 @@
 # Document categorization and risk extraction
 
-Tl;dr: this is a document analysis pipeline for AI-assisted fraud operations on UK Faster Payments. It ingests uploaded evidence (PDF/image), uses an LLM to extract structured signals, and applies deterministic rules to produce an explainable low/medium/high risk assessment. It demonstrates practical agentic AI skills across LLM prompt/schema design, robust failure handling, rule-based risk modeling, human-in-the-loop review, LangGraph multi-agent orchestration, and production-minded testing with a simple Streamlit interface.
+This is a document analysis pipeline for AI-assisted fraud operations on UK Faster Payments, intended to help fraud analysts decide whether to stop or release a suspicious payment based on documentary evidence provided by the payer. It ingests uploaded evidence (PDF/image), uses an LLM to extract structured signals, and applies deterministic rules to produce an explainable low/medium/high risk assessment. 
+
+Topics covered:
+- LLM prompt / schema design, structured output enforcement
+- Deterministic rules engine on top of LLM outputs
+- Human-in-the-loop review
+- Pydantic for schema validation and evals against a golden document set
+- Multi-agent orchestration with LangGraph
+- Observability, including with LangSmith
+- Robust failure handling
 
 # Running the app
 

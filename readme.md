@@ -28,8 +28,14 @@ To run the **app**:
 $ streamlit run app.py
 ```
 
-Upload a file and you'll see an output like this:
-![](./examples/dashboard_example.png)
+Upload a file and choose single-model or multi-agent mode: 
+![](./examples/run_through/upload.png)
+
+Review the extracted fields for correctness before you submit for risk flagging:
+![](./examples/run_through/review.png)
+
+Finally, review the model risk assessment (you can also review the processing metadata and the traced run log):
+![](./examples/run_through/output.png)
 
 
 To run the **tests** (fully offline, no API key needed):

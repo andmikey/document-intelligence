@@ -11,6 +11,8 @@ Topics covered:
 - Observability, including with LangSmith
 - Robust failure handling
 
+More information about the design is available in the [design document](./design.md).
+
 # Architecture
 
 ```
